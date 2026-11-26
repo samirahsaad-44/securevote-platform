@@ -241,7 +241,7 @@
 
         <!-- 1. القسم الرئيسي -->
         <section id="sec-home" class="space-y-10">
-           
+
                 <h2 class="text-3xl sm:text-5xl font-extrabold text-slate-100 leading-tight">
                     منصة التصويت والاستبيانات <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">المحمية والميسرة للجميع</span>
                 </h2>
@@ -542,12 +542,12 @@
         document.addEventListener('keydown', () => { botTelemetry.keyStrokes++; updateAiIndicator(); });
         document.addEventListener('touchstart', () => { botTelemetry.mouseMoves += 3; updateAiIndicator(); });
 
-        // النطق التلقائي عند تمرير الفأرة أو التركيز بلوحة المفاتيح إذا كان الناطق الصوتي مفعلاً
+        // النطق التلقائي عند تمرير الفأرة أو التركيز بلوحة المفاتيح فقط إذا تم تفعيل الناطق الصوتي بالضغط على زره
         document.addEventListener('mouseover', (e) => {
             if (!accessibilityState.ttsActive) return;
             const target = e.target.closest('button, label, h1, h2, h3, p, a, select');
             if (target && target.innerText && target.innerText.trim().length > 0 && target.innerText.length < 250) {
-                speakArabicText(target.innerText.trim());
+                speakArabicText(target.innerText.trim(), true);
             }
         });
 
@@ -555,11 +555,12 @@
             if (!accessibilityState.ttsActive) return;
             const labelText = e.target.getAttribute('aria-label') || e.target.placeholder || e.target.innerText;
             if (labelText && labelText.trim().length > 0) {
-                speakArabicText(labelText.trim());
+                speakArabicText(labelText.trim(), true);
             }
         });
 
-        function speakArabicText(text) {
+        function speakArabicText(text, requireInteractiveTTS = false) {
+            if (requireInteractiveTTS && !accessibilityState.ttsActive) return;
             if (!('speechSynthesis' in window)) return;
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
@@ -587,6 +588,7 @@
             }
         }
 
+        // يعمل فقط عند الضغط على زر "اقرأ الصفحة"
         function readCurrentSectionAloud() {
             accessibilityState.anyToolUsed = true;
             const sec = document.getElementById(`sec-${currentActiveSection}`);
@@ -596,6 +598,7 @@
             }
         }
 
+        // يعمل فقط عند الضغط على زر "استماع" داخل قسم التصويت
         function readPollQuestionsAloud() {
             accessibilityState.anyToolUsed = true;
             if (!currentActivePoll) return;
@@ -609,7 +612,7 @@
             speakArabicText(script);
         }
 
-        // التصويت بالأوامر الصوتية (Speech Recognition API)
+        // التصويت بالأوامر الصوتية (Speech Recognition API) - يعمل فقط عند الضغط على زر "التحكم الصوتي"
         function startVoiceRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -684,7 +687,6 @@
                 accessibilityState.fontScale = Math.min(140, Math.max(85, accessibilityState.fontScale + (delta * 10)));
             }
             document.documentElement.style.fontSize = `${accessibilityState.fontScale}%`;
-            speakArabicText(`حجم الخط الآن ${accessibilityState.fontScale} بالمئة`);
         }
 
         function toggleContrast() {
@@ -692,7 +694,6 @@
             accessibilityState.anyToolUsed = true;
             document.body.classList.toggle('high-contrast', accessibilityState.highContrast);
             document.getElementById('btnContrast').setAttribute('aria-pressed', accessibilityState.highContrast);
-            speakArabicText(accessibilityState.highContrast ? "تم تفعيل وضع التباين العالي" : "تم إيقاف وضع التباين العالي");
         }
 
         function toggleDyslexicMode() {
@@ -701,7 +702,6 @@
             document.body.classList.toggle('font-dyslexic', accessibilityState.dyslexicMode);
             document.body.classList.toggle('wide-spacing', accessibilityState.dyslexicMode);
             document.getElementById('btnDyslexic').setAttribute('aria-pressed', accessibilityState.dyslexicMode);
-            speakArabicText(accessibilityState.dyslexicMode ? "تم تفعيل وضع تيسير القراءة وتوسيع المسافات" : "تم العودة للخط الافتراضي");
         }
 
         function toggleReadingRuler() {
@@ -709,7 +709,6 @@
             accessibilityState.anyToolUsed = true;
             document.getElementById('readingRuler').classList.toggle('hidden', !accessibilityState.rulerActive);
             document.getElementById('btnRuler').setAttribute('aria-pressed', accessibilityState.rulerActive);
-            speakArabicText(accessibilityState.rulerActive ? "تم تفعيل مسطرة التركيز البصري" : "تم إيقاف مسطرة التركيز");
         }
 
         function updateAiIndicator() {
@@ -770,7 +769,6 @@
             sessionStorage.setItem('securevote_user', JSON.stringify(currentUser));
             document.getElementById('loginGateModal').classList.add('hidden');
             applyUserSessionToUI();
-            speakArabicText(`أهلاً بك ${currentUser.name} في منصة سكيور فوت`);
 
             if (currentUser.role === 'creator') {
                 showSection('home');
@@ -932,7 +930,6 @@
                     document.getElementById('qrcode').innerHTML = '';
                     new QRCode(document.getElementById('qrcode'), { text: shareUrl, width: 100, height: 100 });
 
-                    speakArabicText(successMessage);
                     alert(`✅ ${successMessage}`);
                 } else {
                     alert(`⚠️ ${result.detail || 'حدث خطأ أثناء الحفظ'}`);
@@ -1065,12 +1062,10 @@
                     body.classList.add('visual-flash-success');
                     setTimeout(() => body.classList.remove('visual-flash-success'), 800);
                     const msg = `تم تسجيل مشاركتك بنجاح! نسبة التحقق البشري: ${result.ai_human_score} بالمئة`;
-                    speakArabicText(msg);
                     alert(`✅ ${msg}`);
                 } else {
                     body.classList.add('visual-flash-error');
                     setTimeout(() => body.classList.remove('visual-flash-error'), 800);
-                    speakArabicText(result.detail);
                     alert(`⚠️ ${result.detail}`);
                 }
             } catch (error) {
@@ -1157,7 +1152,6 @@
                 input.select();
                 document.execCommand('copy');
             }
-            speakArabicText("تم نسخ رابط المشاركة");
             alert('تم نسخ الرابط!');
         }
     </script>

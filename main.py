@@ -1,6 +1,7 @@
+import json
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +25,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./securevote_local.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-connect_args = {}
+connect_args: dict[str, Any] = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 elif "sslmode=" not in DATABASE_URL:
@@ -41,27 +42,30 @@ Base = declarative_base()
 
 
 # 2. نماذج الجداول في قاعدة البيانات
-class Poll(Base):
+class PollRecord(Base):
     __tablename__ = "polls"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    options_json = Column(Text, nullable=False)
-    is_active = Column(Boolean, default=True)
+    poll_type = Column(String(20), nullable=False, default="poll")  # "poll" أو "survey"
+    title = Column(String(300), nullable=False)
+    description = Column(Text, nullable=True, default="")
+    questions_json = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-class Vote(Base):
+class VoteRecord(Base):
     __tablename__ = "votes"
 
     id = Column(Integer, primary_key=True, index=True)
     poll_id = Column(Integer, ForeignKey("polls.id"), nullable=False, index=True)
-    voter_role = Column(String(50), nullable=False)
-    voter_identifier = Column(String(120), nullable=False)
-    selected_option = Column(String(255), nullable=False)
+    voter_name = Column(String(150), nullable=False)
+    voter_email = Column(String(180), nullable=False, index=True)
+    voter_phone = Column(String(50), nullable=False, index=True)
+    device_hash = Column(String(128), nullable=False, index=True)
+    answers_json = Column(Text, nullable=False)
+    used_accessibility = Column(Boolean, default=False)
+    ai_human_score = Column(Integer, default=100)
     bot_risk_score = Column(Float, default=0.0)
-    telemetry_summary = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
@@ -71,89 +75,96 @@ Base.metadata.create_all(bind=engine)
 # 3. تهيئة تطبيق FastAPI و CORS للنشر السحابي
 app = FastAPI(
     title="SecureVote AI & Accessible API",
-    version="1.0.0",
+    version="2.0.0",
     description="Backend API for fraud-resistant, accessible voting and surveys.",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # يمكن تقييده برابط Vercel/Netlify بعد النشر
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# 4. مخططات البيانات (Pydantic Schemas)
-class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=1)
-    role: str = Field(default="voter")
+# 4. مخططات البيانات (Pydantic Schemas) المطابقة للواجهة
+class QuestionItem(BaseModel):
+    question: str = Field(..., min_length=1)
+    options: list[str] = Field(..., min_length=1)
 
 
-class PollCreateRequest(BaseModel):
-    title: str = Field(..., min_length=2)
+class PollCreatePayload(BaseModel):
+    poll_type: str = Field(default="poll")
+    title: str = Field(..., min_length=1)
     description: Optional[str] = ""
-    options: list[str] = Field(..., min_length=2)
+    questions: list[QuestionItem] = Field(..., min_length=1)
 
 
-class TelemetryData(BaseModel):
-    pointer_events: int = 0
-    key_events: int = 0
-    dwell_time_ms: int = 0
-    accessibility_used: bool = False
+class TelemetryPayload(BaseModel):
+    mouse_moves: int = 0
+    key_strokes: int = 0
+    time_spent_sec: float = 0.0
+    is_webdriver: bool = False
+    accessibility_active: bool = False
 
 
-class VoteSubmitRequest(BaseModel):
-    poll_id: int = Field(default=1)
-    voter_role: str = Field(default="voter")
-    voter_identifier: str = Field(..., min_length=1)
-    selected_option: str = Field(..., min_length=1)
-    telemetry: TelemetryData = Field(default_factory=TelemetryData)
+class VoteSubmitPayload(BaseModel):
+    poll_id: int
+    voter_name: str = Field(..., min_length=1)
+    voter_email: str = Field(..., min_length=3)
+    voter_phone: str = Field(..., min_length=4)
+    answers: dict[str, str] = Field(default_factory=dict)
+    device_hash: str = Field(default="")
+    telemetry: TelemetryPayload = Field(default_factory=TelemetryPayload)
 
 
-def compute_bot_risk(telemetry: TelemetryData) -> tuple[float, str]:
-    """تقييم مبدئي لمخاطر السلوك الآلي بناءً على بيانات التفاعل."""
-    score = 0.05
-    reasons = []
+def evaluate_human_score(telemetry: TelemetryPayload) -> tuple[int, float, str]:
+    """حساب نسبة البشرية (0 - 100) ومؤشر مخاطر البوتات."""
+    if telemetry.is_webdriver:
+        return 5, 0.95, "تم اكتشاف بيئة تشغيل آلية (WebDriver)"
 
-    if telemetry.dwell_time_ms < 400:
-        score += 0.45
-        reasons.append("زمن استجابة سريع جداً")
-    elif telemetry.dwell_time_ms >= 1200:
-        score -= 0.02
-        reasons.append("زمن تفاعل بشري طبيعي")
+    risk = 0.04
+    if telemetry.time_spent_sec < 1.5:
+        risk += 0.45
+    if telemetry.mouse_moves == 0 and telemetry.key_strokes == 0 and not telemetry.accessibility_active:
+        risk += 0.35
+    if telemetry.accessibility_active:
+        risk = max(0.02, risk - 0.02)
 
-    if telemetry.pointer_events == 0 and telemetry.key_events == 0:
-        score += 0.35
-        reasons.append("غياب أحداث المؤشر ولوحة المفاتيح")
-
-    if telemetry.accessibility_used:
-        score = max(0.02, score - 0.10)
-        reasons.append("تفعيل أدوات الإتاحة")
-
-    clamped_score = round(min(max(score, 0.01), 0.99), 2)
-    summary = " | ".join(reasons) if reasons else "تفاعل طبيعي"
-    return clamped_score, summary
+    clamped_risk = round(min(max(risk, 0.01), 0.99), 2)
+    human_score = int(round((1.0 - clamped_risk) * 100))
+    return human_score, clamped_risk, "تحقق سلوكي ناجح"
 
 
-def ensure_default_poll(db) -> Poll:
-    poll = db.query(Poll).filter(Poll.is_active == True).first()  # noqa: E712
-    if not poll:
-        import json
+def serialize_poll(record: PollRecord) -> dict[str, Any]:
+    return {
+        "id": record.id,
+        "poll_type": record.poll_type,
+        "title": record.title,
+        "description": record.description or "",
+        "questions": json.loads(record.questions_json),
+    }
 
-        poll = Poll(
-            title="استطلاع تجربة المستخدم والخدمات الرقمية",
-            description="تصويت تجريبي حي لاختبار المنصة والاتصال بقاعدة البيانات السحابية.",
-            options_json=json.dumps(
-                ["واجهة سهلة ومتاحة للجميع", "سرعة استجابة عالية", "أمان وموثوقية البيانات"],
+
+def ensure_sample_poll(db) -> None:
+    if db.query(PollRecord).count() == 0:
+        sample = PollRecord(
+            poll_type="poll",
+            title="ما مدى رضاك عن سهولة الوصول وإتاحة الخدمات الرقمية؟",
+            description="تصويت تجريبي جاهز لاختبار المنصة وحفظ النتائج في قاعدة البيانات.",
+            questions_json=json.dumps(
+                [
+                    {
+                        "question": "ما مدى رضاك عن سهولة الوصول وإتاحة الخدمات الرقمية؟",
+                        "options": ["ممتاز وسهل جداً", "جيد ويحتاج تحسينات بسيطة", "يحتاج تطوير إضافي"],
+                    }
+                ],
                 ensure_ascii=False,
             ),
-            is_active=True,
         )
-        db.add(poll)
+        db.add(sample)
         db.commit()
-        db.refresh(poll)
-    return poll
 
 
 # 5. نقاط النهاية (Endpoints)
@@ -169,7 +180,7 @@ def root():
 def health_check():
     db = SessionLocal()
     try:
-        ensure_default_poll(db)
+        ensure_sample_poll(db)
         return {"status": "healthy", "database": "connected"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
@@ -177,105 +188,120 @@ def health_check():
         db.close()
 
 
-@app.post("/api/auth/login")
-def login(payload: LoginRequest):
-    normalized_role = payload.role.strip().lower()
-    if normalized_role not in {"admin", "voter", "auditor"}:
-        normalized_role = "voter"
-    return {
-        "authenticated": True,
-        "username": payload.username.strip(),
-        "role": normalized_role,
-        "token_type": "session",
-    }
-
-
-@app.get("/api/polls/active")
-def get_active_poll():
-    import json
-
+@app.get("/polls")
+def list_polls():
     db = SessionLocal()
     try:
-        poll = ensure_default_poll(db)
-        votes = db.query(Vote).filter(Vote.poll_id == poll.id).all()
-        options = json.loads(poll.options_json)
-        counts = {opt: 0 for opt in options}
-        for v in votes:
-            if v.selected_option in counts:
-                counts[v.selected_option] += 1
-        return {
-            "id": poll.id,
-            "title": poll.title,
-            "description": poll.description,
-            "options": options,
-            "total_votes": len(votes),
-            "counts": counts,
-        }
+        ensure_sample_poll(db)
+        records = db.query(PollRecord).order_by(PollRecord.id.asc()).all()
+        return [serialize_poll(r) for r in records]
     finally:
         db.close()
 
 
-@app.post("/api/polls")
-def create_poll(payload: PollCreateRequest):
-    import json
+@app.post("/polls")
+def create_poll_or_survey(payload: PollCreatePayload):
+    cleaned_questions = []
+    for q in payload.questions:
+        q_text = q.question.strip()
+        opts = [opt.strip() for opt in q.options if opt.strip()]
+        if q_text and len(opts) >= 1:
+            cleaned_questions.append({"question": q_text, "options": opts})
 
-    cleaned_options = [opt.strip() for opt in payload.options if opt.strip()]
-    if len(cleaned_options) < 2:
-        raise HTTPException(status_code=400, detail="يجب إدخال خيارين على الأقل.")
+    if not cleaned_questions:
+        raise HTTPException(status_code=400, detail="يجب إدخال سؤال واحد وخيار واحد على الأقل.")
+
+    normalized_type = "survey" if payload.poll_type.strip().lower() == "survey" else "poll"
 
     db = SessionLocal()
     try:
-        db.query(Poll).update({Poll.is_active: False})
-        new_poll = Poll(
+        record = PollRecord(
+            poll_type=normalized_type,
             title=payload.title.strip(),
             description=(payload.description or "").strip(),
-            options_json=json.dumps(cleaned_options, ensure_ascii=False),
-            is_active=True,
+            questions_json=json.dumps(cleaned_questions, ensure_ascii=False),
         )
-        db.add(new_poll)
+        db.add(record)
         db.commit()
-        db.refresh(new_poll)
-        return {"id": new_poll.id, "title": new_poll.title, "options": cleaned_options}
+        db.refresh(record)
+        return serialize_poll(record)
     finally:
         db.close()
 
 
-@app.post("/api/votes")
-def submit_vote(payload: VoteSubmitRequest, request: Request):
+@app.post("/votes")
+def submit_vote(payload: VoteSubmitPayload, request: Request):
+    _ = request.client.host if request.client else "unknown"
+    email_norm = payload.voter_email.strip().lower()
+    phone_norm = payload.voter_phone.strip()
+    device_norm = (payload.device_hash or "no-device-hash").strip()
+
+    human_score, risk_score, reason = evaluate_human_score(payload.telemetry)
+    if risk_score >= 0.80:
+        raise HTTPException(
+            status_code=403,
+            detail=f"تم رفض المشاركة بواسطة نظام الحماية من البوتات ({reason}).",
+        )
+
     db = SessionLocal()
     try:
-        poll = ensure_default_poll(db)
-        target_poll = db.query(Poll).filter(Poll.id == payload.poll_id).first() or poll
+        poll = db.query(PollRecord).filter(PollRecord.id == payload.poll_id).first()
+        if not poll:
+            raise HTTPException(status_code=404, detail="التصويت أو الاستبيان غير موجود.")
 
-        existing_vote = (
-            db.query(Vote)
-            .filter(
-                Vote.poll_id == target_poll.id,
-                Vote.voter_identifier == payload.voter_identifier.strip(),
-            )
+        questions = json.loads(poll.questions_json)
+        for q in questions:
+            q_title = q["question"]
+            if q_title not in payload.answers or not str(payload.answers[q_title]).strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"يرجى اختيار إجابة للسؤال: {q_title}",
+                )
+
+        duplicate_email = (
+            db.query(VoteRecord)
+            .filter(VoteRecord.poll_id == poll.id, VoteRecord.voter_email == email_norm)
             .first()
         )
-        if existing_vote:
+        if duplicate_email:
             raise HTTPException(
                 status_code=409,
-                detail="تم تسجيل صوت مسبق لهذا المعرّف في هذا الاستطلاع.",
+                detail="تم تسجيل مشاركة سابقة بهذا البريد الإلكتروني في هذا الاستبيان/التصويت.",
             )
 
-        risk_score, summary = compute_bot_risk(payload.telemetry)
-        if risk_score >= 0.80:
+        duplicate_phone = (
+            db.query(VoteRecord)
+            .filter(VoteRecord.poll_id == poll.id, VoteRecord.voter_phone == phone_norm)
+            .first()
+        )
+        if duplicate_phone:
             raise HTTPException(
-                status_code=429,
-                detail=f"تم إيقاف الطلب مؤقتاً بواسطة نظام الحماية من البوتات ({summary}).",
+                status_code=409,
+                detail="تم تسجيل مشاركة سابقة برقم الجوال هذا في هذا الاستبيان/التصويت.",
             )
 
-        _ = request.client.host if request.client else "unknown"
-        vote = Vote(
-            poll_id=target_poll.id,
-            voter_role=payload.voter_role.strip().lower(),
-            voter_identifier=payload.voter_identifier.strip(),
-            selected_option=payload.selected_option.strip(),
+        if device_norm != "no-device-hash":
+            duplicate_device = (
+                db.query(VoteRecord)
+                .filter(VoteRecord.poll_id == poll.id, VoteRecord.device_hash == device_norm)
+                .first()
+            )
+            if duplicate_device:
+                raise HTTPException(
+                    status_code=409,
+                    detail="تم تسجيل مشاركة سابقة من هذا الجهاز في هذا الاستبيان/التصويت.",
+                )
+
+        vote = VoteRecord(
+            poll_id=poll.id,
+            voter_name=payload.voter_name.strip(),
+            voter_email=email_norm,
+            voter_phone=phone_norm,
+            device_hash=device_norm,
+            answers_json=json.dumps(payload.answers, ensure_ascii=False),
+            used_accessibility=bool(payload.telemetry.accessibility_active),
+            ai_human_score=human_score,
             bot_risk_score=risk_score,
-            telemetry_summary=summary,
         )
         db.add(vote)
         db.commit()
@@ -284,36 +310,62 @@ def submit_vote(payload: VoteSubmitRequest, request: Request):
         return {
             "status": "recorded",
             "vote_id": vote.id,
+            "ai_human_score": vote.ai_human_score,
             "bot_risk_score": vote.bot_risk_score,
-            "telemetry_summary": vote.telemetry_summary,
         }
     finally:
         db.close()
 
 
-@app.get("/api/votes/summary")
-def votes_summary():
+@app.get("/polls/{poll_id}/results")
+def get_poll_results(poll_id: int):
     db = SessionLocal()
     try:
-        poll = ensure_default_poll(db)
-        votes = db.query(Vote).filter(Vote.poll_id == poll.id).order_by(Vote.id.desc()).all()
-        avg_risk = (
-            round(sum(v.bot_risk_score for v in votes) / len(votes), 2) if votes else 0.0
+        poll = db.query(PollRecord).filter(PollRecord.id == poll_id).first()
+        if not poll:
+            raise HTTPException(status_code=404, detail="التصويت أو الاستبيان غير موجود.")
+
+        questions = json.loads(poll.questions_json)
+        votes = (
+            db.query(VoteRecord)
+            .filter(VoteRecord.poll_id == poll.id)
+            .order_by(VoteRecord.id.desc())
+            .all()
         )
-        recent = [
+
+        questions_results = []
+        for q in questions:
+            q_text = q["question"]
+            counts = {opt: 0 for opt in q["options"]}
+            for v in votes:
+                v_answers = json.loads(v.answers_json)
+                chosen = v_answers.get(q_text)
+                if chosen in counts:
+                    counts[chosen] += 1
+            questions_results.append({
+                "question": q_text,
+                "option_counts": counts,
+            })
+
+        accessibility_count = sum(1 for v in votes if v.used_accessibility)
+        votes_list = [
             {
-                "id": v.id,
-                "voter_role": v.voter_role,
-                "selected_option": v.selected_option,
-                "bot_risk_score": v.bot_risk_score,
-                "telemetry_summary": v.telemetry_summary,
+                "voter_name": v.voter_name,
+                "voter_email": v.voter_email,
+                "used_accessibility": v.used_accessibility,
+                "ai_human_score": v.ai_human_score,
             }
-            for v in votes[:10]
+            for v in votes
         ]
+
         return {
+            "poll_id": poll.id,
+            "title": poll.title,
+            "poll_type": poll.poll_type,
             "total_votes": len(votes),
-            "average_bot_risk": avg_risk,
-            "recent_votes": recent,
+            "accessibility_users_count": accessibility_count,
+            "questions_results": questions_results,
+            "votes_list": votes_list,
         }
     finally:
         db.close()

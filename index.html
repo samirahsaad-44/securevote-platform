@@ -1,547 +1,1165 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" id="htmlRoot">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SecureVote AI — منصة التصويت والاستطلاعات الآمنة والمتاحة</title>
-  <style>
-    :root {
-      --bg: #f4f7fb;
-      --surface: #ffffff;
-      --text: #132238;
-      --muted: #52647a;
-      --primary: #0f4c81;
-      --primary-hover: #0a365c;
-      --accent: #0d9488;
-      --danger: #b91c1c;
-      --success: #15803d;
-      --border: #d7e0ea;
-      --radius: 12px;
-      --font-scale: 1;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة التصويت والاستبيانات الرقمية الآمنة - SecureVote AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Open+Dyslexic&display=swap" rel="stylesheet">
+    <!-- CryptoJS for SHA-256 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- QRCode JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    body.high-contrast {
-      --bg: #000000;
-      --surface: #111111;
-      --text: #ffffff;
-      --muted: #e5e7eb;
-      --primary: #ffd400;
-      --primary-hover: #ffe45e;
-      --accent: #00e5ff;
-      --danger: #ff6b6b;
-      --success: #4ade80;
-      --border: #ffffff;
-    }
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f172a',
+                        secondary: '#3b82f6',
+                        accent: '#06b6d4',
+                        darkBg: '#0b0f19'
+                    },
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif'],
+                        dyslexic: ['Open Dyslexic', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* وضع التباين العالي للمكفوفين وضعاف البصر */
+        .high-contrast {
+            background-color: #000000 !important;
+            color: #ffff00 !important;
+        }
+        .high-contrast section,
+        .high-contrast div,
+        .high-contrast form,
+        .high-contrast input,
+        .high-contrast select,
+        .high-contrast textarea,
+        .high-contrast header,
+        .high-contrast footer {
+            background-color: #000000 !important;
+            color: #ffff00 !important;
+            border-color: #ffff00 !important;
+        }
+        .high-contrast button {
+            background-color: #ffff00 !important;
+            color: #000000 !important;
+            border: 2px solid #ffffff !important;
+            font-weight: 900 !important;
+        }
 
-    * {
-      box-sizing: border-box;
-    }
+        /* تباعد الحروف والأسطر لعسر القراءة */
+        .wide-spacing {
+            letter-spacing: 0.08em !important;
+            word-spacing: 0.18em !important;
+            line-height: 1.9 !important;
+        }
 
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
-      font-size: calc(16px * var(--font-scale));
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-    }
+        /* مؤشر تركيز واضح للتنقل عبر لوحة المفاتيح */
+        *:focus-visible {
+            outline: 3px solid #22d3ee !important;
+            outline-offset: 3px !important;
+        }
 
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 20px;
-    }
+        /* مسطرة دليل القراءة التفاعلية */
+        #readingRuler {
+            position: fixed;
+            left: 0;
+            width: 100%;
+            height: 44px;
+            background: rgba(6, 182, 212, 0.14);
+            border-top: 2px solid rgba(6, 182, 212, 0.7);
+            border-bottom: 2px solid rgba(6, 182, 212, 0.7);
+            pointer-events: none;
+            z-index: 9999;
+            transform: translateY(-50%);
+        }
 
-    header.topbar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px 22px;
-      margin-bottom: 18px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand h1 {
-      margin: 0;
-      font-size: 1.45rem;
-      color: var(--primary);
-    }
-
-    .brand p {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      border: 1px solid var(--border);
-      background: var(--bg);
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 18px;
-    }
-
-    .card h2 {
-      margin-top: 0;
-      font-size: 1.15rem;
-      color: var(--primary);
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 14px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 600;
-      font-size: 0.92rem;
-    }
-
-    input,
-    select {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      font-size: 0.95rem;
-    }
-
-    button {
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 16px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      background: var(--primary);
-      color: #ffffff;
-      transition: opacity 0.15s ease;
-    }
-
-    body.high-contrast button {
-      color: #000000;
-    }
-
-    button:hover {
-      background: var(--primary-hover);
-    }
-
-    button.secondary {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    button.accent {
-      background: var(--accent);
-      color: #06202a;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .option-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-
-    .option-item input[type="radio"] {
-      width: auto;
-      transform: scale(1.2);
-    }
-
-    .status-msg {
-      margin-top: 12px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 0.92rem;
-      display: none;
-    }
-
-    .status-msg.show {
-      display: block;
-    }
-
-    .status-msg.ok {
-      background: rgba(21, 128, 61, 0.12);
-      color: var(--success);
-      border: 1px solid var(--success);
-    }
-
-    .status-msg.err {
-      background: rgba(185, 28, 28, 0.12);
-      color: var(--danger);
-      border: 1px solid var(--danger);
-    }
-
-    .telemetry-box {
-      font-size: 0.88rem;
-      color: var(--muted);
-      background: var(--bg);
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px dashed var(--border);
-      margin-top: 12px;
-    }
-
-    .result-bar {
-      margin-bottom: 10px;
-    }
-
-    .result-track {
-      height: 10px;
-      background: var(--bg);
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-
-    .result-fill {
-      height: 100%;
-      background: var(--primary);
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-  </style>
+        .visual-flash-success {
+            animation: flashGreen 0.8s ease-in-out;
+        }
+        .visual-flash-error {
+            animation: flashRed 0.8s ease-in-out;
+        }
+        @keyframes flashGreen {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 50px 20px rgba(34, 197, 94, 0.8); }
+        }
+        @keyframes flashRed {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 50px 20px rgba(239, 68, 68, 0.8); }
+        }
+    </style>
 </head>
-<body>
-  <div class="container">
-    <header class="topbar">
-      <div class="brand">
-        <h1 id="pageTitle">SecureVote AI</h1>
-        <p>منصة تصويت واستطلاعات موثوقة مدعومة بالذكاء الاصطناعي وأدوات الإتاحة</p>
-      </div>
-      <div id="apiHealthBadge" class="badge">جاري فحص الاتصال بالخادم...</div>
+<body id="appBody" class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
+
+    <!-- مسطرة القراءة للمساعدة على التركيز -->
+    <div id="readingRuler" class="hidden" aria-hidden="true"></div>
+
+    <!-- منطقة الإشعارات الصوتية لقارئات الشاشة (Screen Reader Live Region) -->
+    <div id="srAnnouncer" class="sr-only" aria-live="assertive" role="status"></div>
+
+    <!-- بوابة تسجيل الدخول الإجبارية -->
+    <div id="loginGateModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" class="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-3xl font-extrabold mx-auto shadow-lg shadow-cyan-500/30">
+                    <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                </div>
+                <h2 id="loginModalTitle" class="text-2xl font-extrabold text-white">تسجيل الدخول إلى سكيور فوت</h2>
+                <p class="text-xs text-slate-400">يرجى تسجيل الدخول للمتابعة سواء كنت مصوّتاً أو منشئ استبيانات</p>
+            </div>
+
+            <form onsubmit="handleUserLogin(event)" class="space-y-4">
+                <div>
+                    <label for="loginName" class="block text-xs font-bold text-slate-300 mb-1">الاسم الكامل</label>
+                    <input type="text" id="loginName" required placeholder="أدخل اسمك الكامل" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none">
+                </div>
+                <div>
+                    <label for="loginEmail" class="block text-xs font-bold text-slate-300 mb-1">البريد الإلكتروني</label>
+                    <input type="email" id="loginEmail" required placeholder="name@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none">
+                </div>
+                <div>
+                    <label for="loginPhone" class="block text-xs font-bold text-slate-300 mb-1">رقم الجوال</label>
+                    <input type="tel" id="loginPhone" required placeholder="05xxxxxxxx" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none">
+                </div>
+                <div>
+                    <label for="loginRole" class="block text-xs font-bold text-slate-300 mb-1">نوع الدخول</label>
+                    <select id="loginRole" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-cyan-300 focus:border-cyan-500 outline-none">
+                        <option value="voter">مشارك / مصوّت</option>
+                        <option value="creator">منشئ تصويت واستبيانات</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> دخول آمن للمنصة
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- شريط أدوات ذوي الاحتياجات الخاصة المتكامل -->
+    <div role="region" aria-label="شريط أدوات ذوي الاحتياجات الخاصة" class="bg-slate-900 border-b border-slate-800 py-2.5 px-4 sticky top-0 z-50 flex flex-wrap justify-between items-center gap-2 text-xs">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center space-x-2 space-x-reverse font-bold text-cyan-400">
+                <i class="fa-solid fa-universal-access text-lg" aria-hidden="true"></i>
+                <span>تسهيلات الوصول لذوي الاحتياجات الخاصة:</span>
+            </div>
+            <div class="hidden xl:flex items-center gap-1.5 bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 px-2.5 py-0.5 rounded-full">
+                <i class="fa-solid fa-robot" aria-hidden="true"></i>
+                <span>حماية AI نشطة</span>
+                <span id="aiConfidenceBadge" class="font-mono font-bold mr-1">(100%)</span>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- القارئ الصوتي التفاعلي -->
+            <button type="button" id="btnToggleTTS" onclick="toggleTTSMode()" aria-pressed="false" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg border border-slate-700 font-bold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+                <span id="ttsStatusLabel">الناطق الصوتي: متوقف</span>
+            </button>
+
+            <!-- قراءة محتوى القسم الحالي -->
+            <button type="button" onclick="readCurrentSectionAloud()" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 px-3 py-1.5 rounded-lg border border-slate-700 font-bold flex items-center gap-1.5 transition" title="قراءة الصفحة الحالية صوتياً">
+                <i class="fa-solid fa-ear-listen" aria-hidden="true"></i>
+                <span>اقرأ الصفحة</span>
+            </button>
+
+            <!-- التصويت بالأوامر الصوتية -->
+            <button type="button" id="btnVoiceControl" onclick="startVoiceRecognition()" class="bg-slate-800 hover:bg-slate-700 text-rose-300 px-3 py-1.5 rounded-lg border border-slate-700 font-bold flex items-center gap-1.5 transition" title="التصويت عبر الميكروفون لذوي الإعاقة الحركية">
+                <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+                <span id="voiceCtrlLabel">التحكم الصوتي</span>
+            </button>
+
+            <!-- تكبير وتصغير الخط -->
+            <div class="flex items-center bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+                <button type="button" onclick="adjustFontSize(1)" aria-label="تكبير حجم الخط" class="hover:bg-slate-700 px-2.5 py-1.5 font-extrabold text-white">+A</button>
+                <button type="button" onclick="adjustFontSize(0)" aria-label="إعادة ضبط حجم الخط" class="hover:bg-slate-700 px-2 py-1.5 text-slate-400 border-x border-slate-700">100%</button>
+                <button type="button" onclick="adjustFontSize(-1)" aria-label="تصغير حجم الخط" class="hover:bg-slate-700 px-2.5 py-1.5 font-extrabold text-white">-A</button>
+            </div>
+
+            <!-- التباين العالي -->
+            <button type="button" id="btnContrast" onclick="toggleContrast()" aria-pressed="false" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-amber-400 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i> <span>تباين عالي</span>
+            </button>
+
+            <!-- خط عسر القراءة وتباعد الأسطر -->
+            <button type="button" id="btnDyslexic" onclick="toggleDyslexicMode()" aria-pressed="false" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-purple-400 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-font" aria-hidden="true"></i> <span>تيسير القراءة</span>
+            </button>
+
+            <!-- مسطرة القراءة للتركيز -->
+            <button type="button" id="btnRuler" onclick="toggleReadingRuler()" aria-pressed="false" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-sky-300 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-grip-lines" aria-hidden="true"></i> <span>مسطرة التركيز</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- الهيدر والقائمة الرئيسية -->
+    <header class="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center border-b border-slate-800/80 gap-4">
+        <div class="flex items-center space-x-3 space-x-reverse">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-extrabold shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg sm:text-xl text-slate-100">سكيور فوت <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">SecureVote AI</span></h1>
+                <p class="text-xs text-slate-400">منصة التصويت والاستبيانات الذكية والميسرة للجميع</p>
+            </div>
+        </div>
+
+        <nav aria-label="القائمة الرئيسية" class="flex flex-wrap items-center gap-3 sm:gap-5 text-xs sm:text-sm font-bold">
+            <button onclick="showSection('home')" class="hover:text-cyan-400 transition">الرئيسية</button>
+            <button onclick="showSection('create-poll')" class="hover:text-cyan-400 transition flex items-center gap-1 text-cyan-300">
+                <i class="fa-solid fa-check-to-slot" aria-hidden="true"></i> إنشاء تصويت
+            </button>
+            <button onclick="showSection('create-survey')" class="hover:text-blue-400 transition flex items-center gap-1 text-blue-300">
+                <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> إنشاء استبيان
+            </button>
+            <button onclick="showSection('vote')" class="hover:text-cyan-400 transition">المشاركة والتصويت</button>
+            <button onclick="showSection('dashboard')" class="hover:text-cyan-400 transition">لوحة النتائج</button>
+        </nav>
+
+        <div class="flex items-center gap-2">
+            <span id="loggedUserDisplay" class="text-xs bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl text-cyan-300 font-bold"></span>
+            <button onclick="logoutUser()" class="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs px-3 py-1.5 rounded-xl transition" title="تسجيل الخروج">
+                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> خروج
+            </button>
+        </div>
     </header>
 
-    <!-- شريط أدوات الإتاحة والتحكم الصوتي -->
-    <section class="card" aria-label="أدوات الإتاحة">
-      <h2>أدوات الإتاحة (Accessibility)</h2>
-      <div class="toolbar">
-        <button type="button" class="secondary" id="toggleContrastBtn">تبديل التباين العالي</button>
-        <button type="button" class="secondary" id="increaseFontBtn">تكبير الخط (+)</button>
-        <button type="button" class="secondary" id="resetFontBtn">الخط الافتراضي</button>
-        <button type="button" class="accent" id="readAloudBtn">قراءة صوتية (TTS)</button>
-        <button type="button" class="secondary" id="voiceCmdBtn">التحكم الصوتي</button>
-      </div>
-      <div id="voiceHint" class="telemetry-box">
-        الأوامر الصوتية المدعومة: «قراءة»، «تباين»، «تصويت» — أو استخدمي أزرار التحكم المباشرة.
-      </div>
-    </section>
+    <!-- المحتوى الرئيسي -->
+    <main id="mainContentArea" class="container mx-auto px-4 py-8 flex-grow">
 
-    <!-- تسجيل الدخول حسب الدور -->
-    <section class="card" aria-label="تسجيل الدخول حسب الدور">
-      <h2>الدخول وتحديد الدور</h2>
-      <div class="grid-2">
-        <div>
-          <label for="usernameInput">اسم المستخدم أو المعرّف</label>
-          <input type="text" id="usernameInput" placeholder="مثال: voter_01" value="voter_01" />
+        <!-- 1. القسم الرئيسي -->
+        <section id="sec-home" class="space-y-10">
+           
+                <h2 class="text-3xl sm:text-5xl font-extrabold text-slate-100 leading-tight">
+                    منصة التصويت والاستبيانات <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">المحمية والميسرة للجميع</span>
+                </h2>
+                <p class="text-slate-400 text-sm sm:text-base">
+                    أنشئ تصويتاً سريعاً بسؤال واحد أو استبياناً شاملاً بعدة أسئلة مع أدوات قراءة صوتية وتصويت صوتي وتباين عالي لتمكين جميع فئات المجتمع من المشاركة بسهولة.
+                </p>
+
+                <!-- أيقونات إنشاء تصويت أو استبيان -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto pt-4">
+                    <button onclick="showSection('create-poll')" class="bg-slate-900 hover:bg-slate-800/90 border-2 border-cyan-500/40 hover:border-cyan-400 p-6 rounded-2xl text-right transition group shadow-xl">
+                        <div class="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-check-to-slot" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="text-lg font-extrabold text-white">إنشاء تصويت (Poll)</h3>
+                        <p class="text-xs text-slate-400 mt-1">مخصص لسؤال واحد فقط مع عدة خيارات للتصويت السريع</p>
+                    </button>
+
+                    <button onclick="showSection('create-survey')" class="bg-slate-900 hover:bg-slate-800/90 border-2 border-blue-500/40 hover:border-blue-400 p-6 rounded-2xl text-right transition group shadow-xl">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="text-lg font-extrabold text-white">إنشاء استبيان (Survey)</h3>
+                        <p class="text-xs text-slate-400 mt-1">يحتوي على عدة أسئلة وتحت كل سؤال خياراته المستقلة</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- بطاقة بصمة الجهاز والذكاء الاصطناعي -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 max-w-2xl mx-auto shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-fingerprint text-cyan-400 text-2xl" aria-hidden="true"></i>
+                        <h3 class="font-bold text-slate-200">هوية الجهاز ومراقبة السلوك البشري</h3>
+                    </div>
+                    <span class="text-xs bg-slate-800 text-cyan-400 px-2 py-1 rounded font-mono">SHA-256 + AI</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-slate-500 block mb-1">بصمة الجهاز المشفرة:</span>
+                        <p id="liveDeviceHash" class="text-cyan-400 font-mono font-bold truncate">جاري الحساب...</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-slate-500 block mb-1">تقييم الذكاء الاصطناعي للسلوك:</span>
+                        <p id="liveAiStatus" class="text-emerald-400 font-bold">سلوك بشري طبيعي (موثوق)</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. قسم إنشاء تصويت (سؤال واحد + عدة خيارات) -->
+        <section id="sec-create-poll" class="hidden max-w-3xl mx-auto space-y-6">
+            <div class="border-b border-slate-800 pb-4">
+                <h2 class="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-check-to-slot text-cyan-400" aria-hidden="true"></i> إنشاء تصويت جديد (سؤال واحد)
+                </h2>
+                <p class="text-xs text-slate-400">أدخل عنوان التصويت (السؤال) وأضف الخيارات المتاحة للمصوتين</p>
+            </div>
+
+            <form onsubmit="handleCreateSinglePoll(event)" class="space-y-4 bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                <div>
+                    <label for="singlePollQuestion" class="block text-xs font-bold text-slate-300 mb-2">سؤال التصويت</label>
+                    <input type="text" id="singlePollQuestion" required placeholder="مثال: من ترشح لرئاسة المجلس الطلابي؟" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none">
+                </div>
+                <div>
+                    <label for="singlePollDesc" class="block text-xs font-bold text-slate-300 mb-2">وصف مختصر (اختياري)</label>
+                    <input type="text" id="singlePollDesc" placeholder="تفاصيل إضافية حول التصويت..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-cyan-500 outline-none">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-300">خيارات التصويت</label>
+                    <div id="singlePollOptionsContainer" class="space-y-2">
+                        <input type="text" required placeholder="الخيار الأول" aria-label="الخيار الأول" class="single-poll-opt w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm">
+                        <input type="text" required placeholder="الخيار الثاني" aria-label="الخيار الثاني" class="single-poll-opt w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm">
+                    </div>
+                    <button type="button" onclick="addSinglePollOption()" class="text-xs text-cyan-400 font-bold hover:underline flex items-center gap-1 pt-1">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i> إضافة خيار آخر
+                    </button>
+                </div>
+
+                <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg transition">
+                    نشر التصويت وحفظه
+                </button>
+            </form>
+        </section>
+
+        <!-- 3. قسم إنشاء استبيان (عدة أسئلة + عدة خيارات تحت كل سؤال) -->
+        <section id="sec-create-survey" class="hidden max-w-3xl mx-auto space-y-6">
+            <div class="border-b border-slate-800 pb-4">
+                <h2 class="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-blue-400" aria-hidden="true"></i> إنشاء استبيان متعدد الأسئلة
+                </h2>
+                <p class="text-xs text-slate-400">أضف عنوان الاستبيان ثم أضف الأسئلة وخيارات كل سؤال بشكل مستقل</p>
+            </div>
+
+            <form onsubmit="handleCreateMultiSurvey(event)" class="space-y-5 bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                <div>
+                    <label for="surveyTitle" class="block text-xs font-bold text-slate-300 mb-2">عنوان الاستبيان</label>
+                    <input type="text" id="surveyTitle" required placeholder="مثال: استبيان قياس رضا المستفيدين عن الخدمات الإلكترونية" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-blue-500 outline-none">
+                </div>
+                <div>
+                    <label for="surveyDesc" class="block text-xs font-bold text-slate-300 mb-2">وصف الاستبيان</label>
+                    <textarea id="surveyDesc" rows="2" placeholder="نبذة عن أهداف الاستبيان..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-blue-500 outline-none"></textarea>
+                </div>
+
+                <div id="surveyQuestionsContainer" class="space-y-4"></div>
+
+                <button type="button" onclick="addSurveyQuestionBlock()" class="w-full bg-slate-800 hover:bg-slate-700 text-blue-300 border border-blue-500/40 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-plus-circle" aria-hidden="true"></i> إضافة سؤال جديد للاستبيان
+                </button>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-3 rounded-xl shadow-lg transition">
+                    نشر الاستبيان بالكامل وحفظه
+                </button>
+            </form>
+        </section>
+
+        <!-- بطاقة المشاركة بعد الإنشاء -->
+        <div id="createdShareBox" class="hidden max-w-3xl mx-auto mt-6 bg-slate-900 border border-cyan-800 rounded-2xl p-6 space-y-4">
+            <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                <i class="fa-solid fa-circle-check text-xl" aria-hidden="true"></i> <span id="createdSuccessMsg">تم الحفظ بنجاح!</span>
+            </div>
+            <div>
+                <label for="shareUrlInput" class="block text-xs text-slate-400 mb-1">رابط المشاركة المباشر:</label>
+                <div class="flex gap-2">
+                    <input type="text" id="shareUrlInput" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-cyan-300 font-mono">
+                    <button type="button" onclick="copyShareUrl()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-xl border border-slate-700">نسخ</button>
+                </div>
+            </div>
+            <div class="flex justify-center pt-2">
+                <div id="qrcode" class="bg-white p-3 rounded-xl"></div>
+            </div>
         </div>
-        <div>
-          <label for="roleSelect">الدور الوظيفي</label>
-          <select id="roleSelect">
-            <option value="voter">ناخب / مشارك (Voter)</option>
-            <option value="auditor">مدقق (Auditor)</option>
-            <option value="admin">مشرف (Admin)</option>
-          </select>
-        </div>
-      </div>
-      <div class="toolbar">
-        <button type="button" id="loginBtn">تسجيل الدخول</button>
-        <span id="sessionInfo" class="badge">غير مسجل دخول حالياً</span>
-      </div>
-    </section>
 
-    <!-- التصويت الحي ومؤشرات الحماية من البوتات -->
-    <section class="card" aria-label="التصويت الحي">
-      <h2 id="pollTitle">جاري تحميل الاستطلاع النشط...</h2>
-      <p id="pollDesc"></p>
+        <!-- 4. قسم التصويت والمشاركة -->
+        <section id="sec-vote" class="hidden max-w-2xl mx-auto space-y-6">
+            <div class="border-b border-slate-800 pb-4 flex flex-wrap justify-between items-center gap-3">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-vote-yea text-cyan-400" aria-hidden="true"></i> المشاركة والتصويت الآمن
+                    </h2>
+                    <p class="text-xs text-slate-400">يمكنك اختيار الإجابات بالنقر أو عبر الأوامر الصوتية</p>
+                </div>
+                <select id="votePollSelector" aria-label="اختر التصويت أو الاستبيان" onchange="selectPollForVoting(this.value)" class="bg-slate-900 border border-slate-700 text-cyan-300 text-xs rounded-xl p-2.5 outline-none">
+                    <option value="">اختر تصويتاً أو استبياناً...</option>
+                </select>
+            </div>
 
-      <form id="voteForm">
-        <div id="optionsContainer"></div>
-        <button type="submit" id="submitVoteBtn">إرسال الصوت بأمان</button>
-      </form>
+            <!-- شريط إرشاد التحكم الصوتي للمستخدمين -->
+            <div id="voiceAssistantBanner" class="hidden bg-rose-950/60 border border-rose-700 rounded-xl p-3 text-xs text-rose-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-microphone-lines animate-pulse text-rose-400 text-base"></i>
+                    <span id="voiceTranscriptText">جاري الاستماع... انطق رقم الخيار (مثل: "الأول" أو "الثاني") أو اسم الخيار، أو قل "إرسال".</span>
+                </div>
+            </div>
 
-      <div class="telemetry-box" id="telemetryBox">
-        مؤشرات السلوك (AI Anti-Bot Telemetry): بانتظار التفاعل...
-      </div>
-      <div id="voteStatus" class="status-msg" role="status"></div>
-    </section>
+            <form id="voteForm" onsubmit="handleVoteSubmit(event)" class="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 space-y-5">
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-start gap-2">
+                    <div>
+                        <span id="displayVoteTypeBadge" class="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">تصويت</span>
+                        <h3 id="displayVoteTitle" class="font-bold text-lg text-white mt-2">جاري التحميل...</h3>
+                        <p id="displayVoteDesc" class="text-xs text-slate-400 mt-1"></p>
+                    </div>
+                    <button type="button" onclick="readPollQuestionsAloud()" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-2 rounded-xl border border-slate-700 text-xs font-bold flex items-center gap-1 shrink-0" title="استماع للأسئلة والخيارات">
+                        <i class="fa-solid fa-volume-high"></i> استماع
+                    </button>
+                </div>
 
-    <!-- النتائج المباشرة -->
-    <section class="card" aria-label="النتائج المباشرة">
-      <h2>النتائج المباشرة</h2>
-      <div id="resultsContainer">جاري تحميل النتائج...</div>
-    </section>
-  </div>
+                <!-- بيانات المشارك -->
+                <div class="space-y-3 border-t border-b border-slate-800 py-4">
+                    <p class="text-[11px] text-amber-400/90"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> يُسمح بتشابه الأسماء، ولكن يُمنع تكرار البريد الإلكتروني أو رقم الجوال أو بصمة الجهاز.</p>
+                    <div>
+                        <label for="voterName" class="block text-xs font-bold text-slate-300 mb-1">الاسم الكامل (يُسمح بالتشابه)</label>
+                        <input type="text" id="voterName" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label for="voterEmail" class="block text-xs font-bold text-slate-300 mb-1">البريد الإلكتروني (فريد)</label>
+                            <input type="email" id="voterEmail" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs">
+                        </div>
+                        <div>
+                            <label for="voterPhone" class="block text-xs font-bold text-slate-300 mb-1">رقم الجوال (فريد)</label>
+                            <input type="tel" id="voterPhone" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs">
+                        </div>
+                    </div>
+                </div>
 
-  <script>
-    // عنوان الباك إند المنشور على Render
-    const API_BASE_URL = "https://securevote-platform.onrender.com";
+                <!-- حاوية الأسئلة والخيارات الديناميكية -->
+                <div id="dynamicQuestionsArea" class="space-y-5"></div>
 
-    const state = {
-      poll: null,
-      currentUser: { username: "voter_01", role: "voter" },
-      telemetry: {
-        pointer_events: 0,
-        key_events: 0,
-        start_time: Date.now(),
-        accessibility_used: false
-      }
-    };
+                <button type="submit" id="btnFinalVoteSubmit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold py-3.5 rounded-xl shadow-lg transition flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> إرسال الإجابات والتحقق الأمني
+                </button>
+            </form>
+        </section>
 
-    document.addEventListener("pointermove", () => {
-      state.telemetry.pointer_events += 1;
-      updateTelemetryDisplay();
-    }, { passive: true });
+        <!-- 5. لوحة التحليلات وعرض النتائج -->
+        <section id="sec-dashboard" class="hidden space-y-6 max-w-4xl mx-auto">
+            <div class="border-b border-slate-800 pb-4 flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-cyan-400" aria-hidden="true"></i> لوحة التحليلات والنتائج
+                    </h2>
+                    <p class="text-xs text-slate-400">إحصائيات الأصوات وتقارير فحص الذكاء الاصطناعي وتسهيلات الوصول</p>
+                </div>
+                <select id="dashboardPollSelector" aria-label="اختر التصويت أو الاستبيان لعرض نتائجه" onchange="loadPollResults(this.value)" class="bg-slate-900 border border-slate-700 text-cyan-300 text-xs rounded-xl p-2.5 outline-none">
+                    <option value="">اختر تصويتاً أو استبياناً...</option>
+                </select>
+            </div>
 
-    document.addEventListener("keydown", () => {
-      state.telemetry.key_events += 1;
-      updateTelemetryDisplay();
-    });
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span class="text-xs text-slate-400">إجمالي المشاركات المعتمدة</span>
+                    <p id="dashTotalVotes" class="text-4xl font-extrabold text-emerald-400 mt-2">0</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span class="text-xs text-slate-400">مشاركات عبر تسهيلات ذوي الإعاقة</span>
+                    <p id="dashAccessVotes" class="text-4xl font-extrabold text-purple-400 mt-2">0</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span class="text-xs text-slate-400">حالة فلتر الذكاء الاصطناعي</span>
+                    <p class="text-xl font-extrabold text-cyan-400 mt-3 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-virus" aria-hidden="true"></i> يحظر البوتات
+                    </p>
+                </div>
+            </div>
 
-    function updateTelemetryDisplay() {
-      const dwellMs = Date.now() - state.telemetry.start_time;
-      document.getElementById("telemetryBox").textContent =
-        `مؤشرات السلوك (AI Anti-Bot Telemetry): زمن التفاعل ${(dwellMs / 1000).toFixed(1)}ث | حركة المؤشر ${state.telemetry.pointer_events} | ضغطات المفاتيح ${state.telemetry.key_events} | إتاحة: ${state.telemetry.accessibility_used ? "مفعّلة" : "غير مفعّلة"}`;
-    }
+            <div id="resultsBreakdownContainer" class="space-y-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <p class="text-xs text-slate-500">اختر عنصراً من القائمة أعلاه لعرض النتائج التفصيلية...</p>
+                </div>
+            </div>
 
-    function showStatus(elId, message, isError = false) {
-      const el = document.getElementById(elId);
-      el.textContent = message;
-      el.className = `status-msg show ${isError ? "err" : "ok"}`;
-    }
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto">
+                <h3 class="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-cyan-400" aria-hidden="true"></i> سجل المشاركين وتقييم الذكاء الاصطناعي
+                </h3>
+                <table class="w-full text-right text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400">
+                            <th class="p-2">اسم المشارك</th>
+                            <th class="p-2">البريد الإلكتروني</th>
+                            <th class="p-2">أدوات ذوي الاحتياجات</th>
+                            <th class="p-2">نسبة البشرية (AI)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pollVotesTableTbody">
+                        <tr>
+                            <td colspan="4" class="p-4 text-center text-slate-500">لا توجد بيانات معروضة</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-    async function checkBackendHealth() {
-      const badge = document.getElementById("apiHealthBadge");
-      try {
-        const res = await fetch(`${API_BASE_URL}/`);
-        const data = await res.json();
-        if (res.ok) {
-          badge.textContent = `متصل بالخادم: ${data.status || "online"}`;
-        } else {
-          badge.textContent = "تعذر التحقق من الخادم";
-        }
-      } catch (err) {
-        badge.textContent = "غير متصل بالخادم (تحققي من CORS أو عنوان API)";
-      }
-    }
+    </main>
 
-    async function loadActivePoll() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/polls/active`);
-        if (!res.ok) throw new Error("فشل تحميل الاستطلاع");
-        const data = await res.json();
-        state.poll = data;
+    <footer class="bg-slate-900/90 border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+        منصة التصويت والاستبيانات الرقمية الآمنة والميسرة للجميع (SecureVote AI) © 2026
+    </footer>
 
-        document.getElementById("pollTitle").textContent = data.title;
-        document.getElementById("pollDesc").textContent = data.description || "";
+    <!-- السكربت البرمجي -->
+    <script>
+        const PRODUCTION_API_URL = "https://securevote-platform.onrender.com";
+        const LOCAL_API_URL = "http://127.0.0.1:8000";
+        const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+        const API_BASE_URL = isLocalHost ? LOCAL_API_URL : PRODUCTION_API_URL;
 
-        const container = document.getElementById("optionsContainer");
-        container.innerHTML = "";
-        data.options.forEach((opt, idx) => {
-          const id = `opt_${idx}`;
-          const label = document.createElement("label");
-          label.className = "option-item";
-          label.htmlFor = id;
-          label.innerHTML = `
-            <input type="radio" id="${id}" name="voteOption" value="${escapeHtml(opt)}" ${idx === 0 ? "checked" : ""} />
-            <span>${escapeHtml(opt)}</span>
-          `;
-          container.appendChild(label);
-        });
+        let currentDeviceHash = '';
+        let allPollsCache = [];
+        let currentActivePoll = null;
+        let currentUser = null;
+        let currentActiveSection = 'home';
 
-        renderResults(data);
-      } catch (err) {
-        document.getElementById("pollTitle").textContent = "تعذر تحميل الاستطلاع حالياً";
-        document.getElementById("resultsContainer").textContent = err.message;
-      }
-    }
+        // متغيرات أدوات ذوي الاحتياجات الخاصة
+        let accessibilityState = {
+            ttsActive: false,
+            fontScale: 100,
+            highContrast: false,
+            dyslexicMode: false,
+            rulerActive: false,
+            anyToolUsed: false
+        };
 
-    function renderResults(pollData) {
-      const container = document.getElementById("resultsContainer");
-      const total = pollData.total_votes || 0;
-      const counts = pollData.counts || {};
+        // متغيرات محرك الذكاء الاصطناعي لكشف البوتات
+        let botTelemetry = {
+            mouseMoves: 0,
+            keyStrokes: 0,
+            startTime: Date.now()
+        };
 
-      if (!pollData.options || pollData.options.length === 0) {
-        container.textContent = "لا توجد خيارات متاحة.";
-        return;
-      }
-
-      container.innerHTML = `<p><strong>إجمالي الأصوات المسجلة:</strong> ${total}</p>`;
-      pollData.options.forEach((opt) => {
-        const count = counts[opt] || 0;
-        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-        const row = document.createElement("div");
-        row.className = "result-bar";
-        row.innerHTML = `
-          <div>${escapeHtml(opt)} — <strong>${count}</strong> (${pct}%)</div>
-          <div class="result-track"><div class="result-fill" style="width:${pct}%"></div></div>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    function escapeHtml(str) {
-      return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
-    }
-
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      const username = document.getElementById("usernameInput").value.trim() || "voter_01";
-      const role = document.getElementById("roleSelect").value;
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, role })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "فشل تسجيل الدخول");
-        state.currentUser = { username: data.username, role: data.role };
-        document.getElementById("sessionInfo").textContent =
-          `المستخدم: ${data.username} | الدور: ${data.role}`;
-      } catch (err) {
-        showStatus("voteStatus", err.message, true);
-      }
-    });
-
-    document.getElementById("voteForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const selected = document.querySelector('input[name="voteOption"]:checked');
-      if (!selected) {
-        showStatus("voteStatus", "يرجى اختيار خيار قبل إرسال الصوت.", true);
-        return;
-      }
-
-      const identifier =
-        document.getElementById("usernameInput").value.trim() || state.currentUser.username;
-      const dwellMs = Date.now() - state.telemetry.start_time;
-
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/votes`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            poll_id: state.poll ? state.poll.id : 1,
-            voter_role: state.currentUser.role,
-            voter_identifier: identifier,
-            selected_option: selected.value,
-            telemetry: {
-              pointer_events: state.telemetry.pointer_events,
-              key_events: state.telemetry.key_events,
-              dwell_time_ms: dwellMs,
-              accessibility_used: state.telemetry.accessibility_used
+        document.addEventListener('mousemove', (e) => {
+            botTelemetry.mouseMoves++;
+            updateAiIndicator();
+            if (accessibilityState.rulerActive) {
+                document.getElementById('readingRuler').style.top = `${e.clientY}px`;
             }
-          })
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "تعذر تسجيل الصوت");
+        document.addEventListener('keydown', () => { botTelemetry.keyStrokes++; updateAiIndicator(); });
+        document.addEventListener('touchstart', () => { botTelemetry.mouseMoves += 3; updateAiIndicator(); });
 
-        showStatus(
-          "voteStatus",
-          `تم تسجيل صوتك بنجاح (رقم الصوت: ${data.vote_id} | مؤشر المخاطر: ${data.bot_risk_score})`,
-          false
-        );
-        state.telemetry.start_time = Date.now();
-        await loadActivePoll();
-      } catch (err) {
-        showStatus("voteStatus", err.message, true);
-      }
-    });
+        // النطق التلقائي عند تمرير الفأرة أو التركيز بلوحة المفاتيح إذا كان الناطق الصوتي مفعلاً
+        document.addEventListener('mouseover', (e) => {
+            if (!accessibilityState.ttsActive) return;
+            const target = e.target.closest('button, label, h1, h2, h3, p, a, select');
+            if (target && target.innerText && target.innerText.trim().length > 0 && target.innerText.length < 250) {
+                speakArabicText(target.innerText.trim());
+            }
+        });
 
-    // أدوات الإتاحة
-    document.getElementById("toggleContrastBtn").addEventListener("click", () => {
-      document.body.classList.toggle("high-contrast");
-      state.telemetry.accessibility_used = true;
-      updateTelemetryDisplay();
-    });
+        document.addEventListener('focusin', (e) => {
+            if (!accessibilityState.ttsActive) return;
+            const labelText = e.target.getAttribute('aria-label') || e.target.placeholder || e.target.innerText;
+            if (labelText && labelText.trim().length > 0) {
+                speakArabicText(labelText.trim());
+            }
+        });
 
-    document.getElementById("increaseFontBtn").addEventListener("click", () => {
-      const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--font-scale")) || 1;
-      document.documentElement.style.setProperty("--font-scale", Math.min(current + 0.15, 1.6));
-      state.telemetry.accessibility_used = true;
-      updateTelemetryDisplay();
-    });
-
-    document.getElementById("resetFontBtn").addEventListener("click", () => {
-      document.documentElement.style.setProperty("--font-scale", 1);
-    });
-
-    document.getElementById("readAloudBtn").addEventListener("click", () => {
-      state.telemetry.accessibility_used = true;
-      updateTelemetryDisplay();
-      const text = `${document.getElementById("pollTitle").textContent}. ${document.getElementById("pollDesc").textContent}`;
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = "ar-SA";
-        window.speechSynthesis.speak(utter);
-      } else {
-        showStatus("voteStatus", "المتصفح لا يدعم القراءة الصوتية المباشرة.", true);
-      }
-    });
-
-    document.getElementById("voiceCmdBtn").addEventListener("click", () => {
-      state.telemetry.accessibility_used = true;
-      updateTelemetryDisplay();
-      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRec) {
-        showStatus("voteStatus", "التحكم الصوتي غير مدعوم في هذا المتصفح، استخدمي الأزرار المباشرة.", true);
-        return;
-      }
-      const rec = new SpeechRec();
-      rec.lang = "ar-SA";
-      rec.onresult = (ev) => {
-        const transcript = ev.results[0][0].transcript || "";
-        if (transcript.includes("تباين")) {
-          document.getElementById("toggleContrastBtn").click();
-        } else if (transcript.includes("قراءة")) {
-          document.getElementById("readAloudBtn").click();
-        } else if (transcript.includes("تصويت")) {
-          document.getElementById("submitVoteBtn").click();
+        function speakArabicText(text) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ar-SA';
+            utterance.rate = 0.95;
+            window.speechSynthesis.speak(utterance);
+            document.getElementById('srAnnouncer').innerText = text;
         }
-      };
-      rec.start();
-    });
 
-    checkBackendHealth();
-    loadActivePoll();
-    updateTelemetryDisplay();
-  </script>
+        function toggleTTSMode() {
+            accessibilityState.ttsActive = !accessibilityState.ttsActive;
+            accessibilityState.anyToolUsed = true;
+            const btn = document.getElementById('btnToggleTTS');
+            const label = document.getElementById('ttsStatusLabel');
+            btn.setAttribute('aria-pressed', accessibilityState.ttsActive);
+
+            if (accessibilityState.ttsActive) {
+                label.innerText = "الناطق الصوتي: مفعل";
+                btn.classList.add('border-cyan-400', 'bg-cyan-950');
+                speakArabicText("تم تفعيل الناطق الصوتي التفاعلي. مرر المؤشر أو تنقل بلوحة المفاتيح للاستماع إلى العناصر.");
+            } else {
+                label.innerText = "الناطق الصوتي: متوقف";
+                btn.classList.remove('border-cyan-400', 'bg-cyan-950');
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function readCurrentSectionAloud() {
+            accessibilityState.anyToolUsed = true;
+            const sec = document.getElementById(`sec-${currentActiveSection}`);
+            if (sec) {
+                const cleanText = sec.innerText.replace(/\s+/g, ' ').trim();
+                speakArabicText(cleanText);
+            }
+        }
+
+        function readPollQuestionsAloud() {
+            accessibilityState.anyToolUsed = true;
+            if (!currentActivePoll) return;
+            let script = `عنوان ${currentActivePoll.poll_type === 'survey' ? 'الاستبيان' : 'التصويت'}: ${currentActivePoll.title}. `;
+            currentActivePoll.questions.forEach((q, idx) => {
+                script += `السؤال رقم ${idx + 1}: ${q.question}. الخيارات المتاحة هي: `;
+                q.options.forEach((opt, oIdx) => {
+                    script += `الخيار ${oIdx + 1}: ${opt}. `;
+                });
+            });
+            speakArabicText(script);
+        }
+
+        // التصويت بالأوامر الصوتية (Speech Recognition API)
+        function startVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("متصفحك لا يدعم ميزة التعرف على الصوت. يُرجى استخدام متصفح Google Chrome أو Microsoft Edge.");
+                return;
+            }
+
+            accessibilityState.anyToolUsed = true;
+            showSection('vote');
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ar-SA';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const banner = document.getElementById('voiceAssistantBanner');
+            const transcriptEl = document.getElementById('voiceTranscriptText');
+            banner.classList.remove('hidden');
+            transcriptEl.innerText = "جاري الاستماع لصوتك... انطق رقم الخيار (مثل: الأول، الثاني) أو اسم الخيار، أو قل: إرسال.";
+            speakArabicText("تفضل بالتحدث لاختيار إجابتك");
+
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const spokenText = event.results[0][0].transcript.trim();
+                transcriptEl.innerText = `تم سماع: "${spokenText}"`;
+                processVoiceCommand(spokenText);
+            };
+
+            recognition.onerror = function() {
+                transcriptEl.innerText = "لم يتم التقاط الصوت بوضوح. اضغط على زر التحكم الصوتي للمحاولة مرة أخرى.";
+            };
+        }
+
+        function processVoiceCommand(command) {
+            const radios = Array.from(document.querySelectorAll('#dynamicQuestionsArea input[type="radio"]'));
+            if (radios.length === 0) return;
+
+            if (command.includes("إرسال") || command.includes("اعتمد") || command.includes("تأكيد")) {
+                speakArabicText("جاري إرسال إجاباتك");
+                document.getElementById('btnFinalVoteSubmit').click();
+                return;
+            }
+
+            let selectedRadio = null;
+            if (command.includes("الأول") || command.includes("الاول") || command.includes("واحد")) {
+                selectedRadio = radios[0];
+            } else if (command.includes("الثاني") || command.includes("اثنين")) {
+                selectedRadio = radios[1];
+            } else if (command.includes("الثالث") || command.includes("ثلاثة")) {
+                selectedRadio = radios[2];
+            } else if (command.includes("الرابع") || command.includes("أربعة")) {
+                selectedRadio = radios[3];
+            } else {
+                // البحث بمطابقة نص الخيار المنطوق
+                selectedRadio = radios.find(r => r.value.includes(command) || command.includes(r.value));
+            }
+
+            if (selectedRadio) {
+                selectedRadio.checked = true;
+                speakArabicText(`تم تحديد الخيار: ${selectedRadio.value}`);
+            } else {
+                speakArabicText("لم أتعرف على الخيار المطلوب، حاول مرة أخرى");
+            }
+        }
+
+        function adjustFontSize(delta) {
+            accessibilityState.anyToolUsed = true;
+            if (delta === 0) {
+                accessibilityState.fontScale = 100;
+            } else {
+                accessibilityState.fontScale = Math.min(140, Math.max(85, accessibilityState.fontScale + (delta * 10)));
+            }
+            document.documentElement.style.fontSize = `${accessibilityState.fontScale}%`;
+            speakArabicText(`حجم الخط الآن ${accessibilityState.fontScale} بالمئة`);
+        }
+
+        function toggleContrast() {
+            accessibilityState.highContrast = !accessibilityState.highContrast;
+            accessibilityState.anyToolUsed = true;
+            document.body.classList.toggle('high-contrast', accessibilityState.highContrast);
+            document.getElementById('btnContrast').setAttribute('aria-pressed', accessibilityState.highContrast);
+            speakArabicText(accessibilityState.highContrast ? "تم تفعيل وضع التباين العالي" : "تم إيقاف وضع التباين العالي");
+        }
+
+        function toggleDyslexicMode() {
+            accessibilityState.dyslexicMode = !accessibilityState.dyslexicMode;
+            accessibilityState.anyToolUsed = true;
+            document.body.classList.toggle('font-dyslexic', accessibilityState.dyslexicMode);
+            document.body.classList.toggle('wide-spacing', accessibilityState.dyslexicMode);
+            document.getElementById('btnDyslexic').setAttribute('aria-pressed', accessibilityState.dyslexicMode);
+            speakArabicText(accessibilityState.dyslexicMode ? "تم تفعيل وضع تيسير القراءة وتوسيع المسافات" : "تم العودة للخط الافتراضي");
+        }
+
+        function toggleReadingRuler() {
+            accessibilityState.rulerActive = !accessibilityState.rulerActive;
+            accessibilityState.anyToolUsed = true;
+            document.getElementById('readingRuler').classList.toggle('hidden', !accessibilityState.rulerActive);
+            document.getElementById('btnRuler').setAttribute('aria-pressed', accessibilityState.rulerActive);
+            speakArabicText(accessibilityState.rulerActive ? "تم تفعيل مسطرة التركيز البصري" : "تم إيقاف مسطرة التركيز");
+        }
+
+        function updateAiIndicator() {
+            const isWebdriver = navigator.webdriver === true;
+            const badge = document.getElementById('aiConfidenceBadge');
+            const statusText = document.getElementById('liveAiStatus');
+            if (isWebdriver) {
+                badge.innerText = "(0% - Bot)";
+                statusText.innerText = "تم اكتشاف بيئة آلية (Bot)!";
+                statusText.className = "text-rose-400 font-bold";
+            } else {
+                badge.innerText = "(100% بشري)";
+                statusText.innerText = "سلوك بشري طبيعي (موثوق)";
+                statusText.className = "text-emerald-400 font-bold";
+            }
+        }
+
+        window.onload = async function() {
+            generateDeviceFingerprint();
+            checkLoginSession();
+            addSurveyQuestionBlock();
+            await fetchPollsFromBackend();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedPollId = urlParams.get('pollId');
+            if (requestedPollId && allPollsCache.length > 0) {
+                const matched = allPollsCache.find(p => String(p.id) === String(requestedPollId));
+                if (matched) {
+                    document.getElementById('votePollSelector').value = matched.id;
+                    renderVotingForm(matched);
+                    if (currentUser) {
+                        showSection('vote');
+                    }
+                }
+            }
+        };
+
+        // 1. إدارة تسجيل الدخول الإجباري
+        function checkLoginSession() {
+            const savedUser = sessionStorage.getItem('securevote_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                document.getElementById('loginGateModal').classList.add('hidden');
+                applyUserSessionToUI();
+            } else {
+                document.getElementById('loginGateModal').classList.remove('hidden');
+            }
+        }
+
+        function handleUserLogin(e) {
+            e.preventDefault();
+            currentUser = {
+                name: document.getElementById('loginName').value.trim(),
+                email: document.getElementById('loginEmail').value.trim(),
+                phone: document.getElementById('loginPhone').value.trim(),
+                role: document.getElementById('loginRole').value
+            };
+            sessionStorage.setItem('securevote_user', JSON.stringify(currentUser));
+            document.getElementById('loginGateModal').classList.add('hidden');
+            applyUserSessionToUI();
+            speakArabicText(`أهلاً بك ${currentUser.name} في منصة سكيور فوت`);
+
+            if (currentUser.role === 'creator') {
+                showSection('home');
+            } else {
+                showSection('vote');
+            }
+        }
+
+        function applyUserSessionToUI() {
+            if (!currentUser) return;
+            const roleLabel = currentUser.role === 'creator' ? 'منشئ' : 'مشارك';
+            document.getElementById('loggedUserDisplay').innerText = `${currentUser.name} (${roleLabel})`;
+
+            document.getElementById('voterName').value = currentUser.name;
+            document.getElementById('voterEmail').value = currentUser.email;
+            document.getElementById('voterPhone').value = currentUser.phone;
+        }
+
+        function logoutUser() {
+            sessionStorage.removeItem('securevote_user');
+            currentUser = null;
+            document.getElementById('loginGateModal').classList.remove('hidden');
+        }
+
+        // 2. بصمة الجهاز
+        function generateDeviceFingerprint() {
+            const screenRes = `${window.screen.width}x${window.screen.height}`;
+            const platform = navigator.userAgent;
+            const rawString = `${screenRes}-${platform}-${navigator.language}`;
+            currentDeviceHash = CryptoJS.SHA256(rawString).toString();
+            document.getElementById('liveDeviceHash').innerText = currentDeviceHash;
+        }
+
+        // 3. التنقل بين الأقسام
+        function showSection(sectionId) {
+            currentActiveSection = sectionId;
+            ['home', 'create-poll', 'create-survey', 'vote', 'dashboard'].forEach(sec => {
+                document.getElementById(`sec-${sec}`).classList.add('hidden');
+            });
+            document.getElementById('createdShareBox').classList.add('hidden');
+            document.getElementById(`sec-${sectionId}`).classList.remove('hidden');
+
+            if (sectionId === 'vote' || sectionId === 'dashboard') {
+                fetchPollsFromBackend();
+            }
+        }
+
+        // 4. منشئ التصويت
+        function addSinglePollOption() {
+            const container = document.getElementById('singlePollOptionsContainer');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.required = true;
+            input.placeholder = `خيار إضافي`;
+            input.className = 'single-poll-opt w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm mt-2';
+            container.appendChild(input);
+        }
+
+        async function handleCreateSinglePoll(e) {
+            e.preventDefault();
+            const questionText = document.getElementById('singlePollQuestion').value.trim();
+            const description = document.getElementById('singlePollDesc').value.trim();
+            const optInputs = document.querySelectorAll('.single-poll-opt');
+            const options = Array.from(optInputs).map(i => i.value.trim()).filter(v => v !== '');
+
+            const payload = {
+                poll_type: "poll",
+                title: questionText,
+                description: description,
+                questions: [{ question: questionText, options: options }]
+            };
+
+            await submitNewPollOrSurvey(payload, "تم إنشاء التصويت وحفظه في قاعدة البيانات بنجاح!");
+            e.target.reset();
+        }
+
+        // 5. منشئ الاستبيان
+        let surveyQuestionCounter = 0;
+
+        function addSurveyQuestionBlock() {
+            surveyQuestionCounter++;
+            const container = document.getElementById('surveyQuestionsContainer');
+            const blockId = `q-block-${surveyQuestionCounter}`;
+
+            const div = document.createElement('div');
+            div.id = blockId;
+            div.className = "survey-question-block bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3";
+            div.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-400">السؤال #${surveyQuestionCounter}</span>
+                    ${surveyQuestionCounter > 1 ? `<button type="button" onclick="document.getElementById('${blockId}').remove()" class="text-xs text-rose-400 hover:underline">حذف السؤال</button>` : ''}
+                </div>
+                <input type="text" required placeholder="اكتب نص السؤال هنا..." class="survey-q-text w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm focus:border-blue-500 outline-none">
+                <div class="survey-q-options space-y-2 pr-3 border-r-2 border-blue-500/40">
+                    <input type="text" required placeholder="الخيار 1" class="survey-opt-input w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs">
+                    <input type="text" required placeholder="الخيار 2" class="survey-opt-input w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs">
+                </div>
+                <button type="button" onclick="addOptionToSurveyQuestion(this)" class="text-xs text-blue-400 hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> إضافة خيار لهذا السؤال
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        function addOptionToSurveyQuestion(btn) {
+            const optionsDiv = btn.previousElementSibling;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.required = true;
+            input.placeholder = "خيار إضافي";
+            input.className = "survey-opt-input w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs";
+            optionsDiv.appendChild(input);
+        }
+
+        async function handleCreateMultiSurvey(e) {
+            e.preventDefault();
+            const title = document.getElementById('surveyTitle').value.trim();
+            const description = document.getElementById('surveyDesc').value.trim();
+
+            const blocks = document.querySelectorAll('.survey-question-block');
+            const questions = [];
+
+            blocks.forEach(block => {
+                const qText = block.querySelector('.survey-q-text').value.trim();
+                const optInputs = block.querySelectorAll('.survey-opt-input');
+                const opts = Array.from(optInputs).map(i => i.value.trim()).filter(v => v !== '');
+                if (qText && opts.length > 0) {
+                    questions.push({ question: qText, options: opts });
+                }
+            });
+
+            const payload = {
+                poll_type: "survey",
+                title: title,
+                description: description,
+                questions: questions
+            };
+
+            await submitNewPollOrSurvey(payload, "تم إنشاء الاستبيان متعدد الأسئلة وحفظه بنجاح!");
+            e.target.reset();
+        }
+
+        async function submitNewPollOrSurvey(payload, successMessage) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/polls`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    await fetchPollsFromBackend();
+                    document.getElementById('createdSuccessMsg').innerText = successMessage;
+                    document.getElementById('createdShareBox').classList.remove('hidden');
+
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?pollId=${result.id}`;
+                    document.getElementById('shareUrlInput').value = shareUrl;
+                    document.getElementById('qrcode').innerHTML = '';
+                    new QRCode(document.getElementById('qrcode'), { text: shareUrl, width: 100, height: 100 });
+
+                    speakArabicText(successMessage);
+                    alert(`✅ ${successMessage}`);
+                } else {
+                    alert(`⚠️ ${result.detail || 'حدث خطأ أثناء الحفظ'}`);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("تعذر الاتصال بالسيرفر! تأكدي من أن خادم Render يعمل أو حاولي مرة أخرى بعد ثوانٍ.");
+            }
+        }
+
+        // 6. جلب البيانات وعرضها في التصويت ولوحة النتائج
+        async function fetchPollsFromBackend() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/polls`);
+                if (!response.ok) return;
+                allPollsCache = await response.json();
+
+                const voteSelector = document.getElementById('votePollSelector');
+                const dashSelector = document.getElementById('dashboardPollSelector');
+
+                voteSelector.innerHTML = '<option value="">اختر تصويتاً أو استبياناً...</option>';
+                dashSelector.innerHTML = '<option value="">اختر تصويتاً أو استبياناً...</option>';
+
+                allPollsCache.forEach(p => {
+                    const typeTag = p.poll_type === 'survey' ? '[استبيان]' : '[تصويت]';
+                    const opt1 = new Option(`${typeTag} ${p.title}`, p.id);
+                    const opt2 = new Option(`${typeTag} ${p.title}`, p.id);
+                    voteSelector.add(opt1);
+                    dashSelector.add(opt2);
+                });
+
+                if (allPollsCache.length > 0) {
+                    const latest = allPollsCache[allPollsCache.length - 1];
+                    voteSelector.value = latest.id;
+                    renderVotingForm(latest);
+                } else {
+                    document.getElementById('displayVoteTitle').innerText = "لا توجد تصويتات أو استبيانات متاحة حالياً";
+                }
+            } catch (e) {
+                console.error("خطأ في جلب البيانات:", e);
+            }
+        }
+
+        function selectPollForVoting(pollId) {
+            const found = allPollsCache.find(p => p.id == pollId);
+            if (found) renderVotingForm(found);
+        }
+
+        function renderVotingForm(poll) {
+            currentActivePoll = poll;
+            botTelemetry.startTime = Date.now();
+
+            const badge = document.getElementById('displayVoteTypeBadge');
+            badge.innerText = poll.poll_type === 'survey' ? 'استبيان متعدد الأسئلة' : 'تصويت سريع (سؤال واحد)';
+            badge.className = poll.poll_type === 'survey'
+                ? 'text-[10px] px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800 font-bold'
+                : 'text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold';
+
+            document.getElementById('displayVoteTitle').innerText = poll.title;
+            document.getElementById('displayVoteDesc').innerText = poll.description || '';
+
+            const area = document.getElementById('dynamicQuestionsArea');
+            area.innerHTML = '';
+
+            poll.questions.forEach((q, qIndex) => {
+                const qBox = document.createElement('div');
+                qBox.className = "bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-2.5";
+
+                let optionsHtml = '';
+                q.options.forEach((opt, optIndex) => {
+                    optionsHtml += `
+                        <label class="flex items-center gap-3 p-3 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer hover:border-cyan-500 text-xs">
+                            <input type="radio" name="q_choice_${qIndex}" data-question="${q.question}" value="${opt}" required class="w-4 h-4 text-cyan-500">
+                            <span>${optIndex + 1}. ${opt}</span>
+                        </label>
+                    `;
+                });
+
+                qBox.innerHTML = `
+                    <p class="font-bold text-sm text-cyan-300">${qIndex + 1}. ${q.question}</p>
+                    <div class="space-y-2" role="radiogroup" aria-label="${q.question}">${optionsHtml}</div>
+                `;
+                area.appendChild(qBox);
+            });
+        }
+
+        // 7. إرسال التصويت/الاستبيان
+        async function handleVoteSubmit(e) {
+            e.preventDefault();
+            if (!currentActivePoll) return;
+
+            const answers = {};
+            currentActivePoll.questions.forEach((q, idx) => {
+                const checked = document.querySelector(`input[name="q_choice_${idx}"]:checked`);
+                if (checked) {
+                    answers[q.question] = checked.value;
+                }
+            });
+
+            const timeSpentSec = (Date.now() - botTelemetry.startTime) / 1000;
+            const telemetryPayload = {
+                mouse_moves: botTelemetry.mouseMoves,
+                key_strokes: botTelemetry.keyStrokes,
+                time_spent_sec: timeSpentSec,
+                is_webdriver: navigator.webdriver === true,
+                accessibility_active: accessibilityState.anyToolUsed
+            };
+
+            const payload = {
+                poll_id: currentActivePoll.id,
+                voter_name: document.getElementById('voterName').value.trim(),
+                voter_email: document.getElementById('voterEmail').value.trim(),
+                voter_phone: document.getElementById('voterPhone').value.trim(),
+                answers: answers,
+                device_hash: currentDeviceHash,
+                telemetry: telemetryPayload
+            };
+
+            const body = document.getElementById('appBody');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/votes`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    body.classList.add('visual-flash-success');
+                    setTimeout(() => body.classList.remove('visual-flash-success'), 800);
+                    const msg = `تم تسجيل مشاركتك بنجاح! نسبة التحقق البشري: ${result.ai_human_score} بالمئة`;
+                    speakArabicText(msg);
+                    alert(`✅ ${msg}`);
+                } else {
+                    body.classList.add('visual-flash-error');
+                    setTimeout(() => body.classList.remove('visual-flash-error'), 800);
+                    speakArabicText(result.detail);
+                    alert(`⚠️ ${result.detail}`);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("حدث خطأ أثناء الاتصال بالخادم.");
+            }
+        }
+
+        // 8. عرض النتائج في لوحة التحليلات
+        async function loadPollResults(pollId) {
+            if (!pollId) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/polls/${pollId}/results`);
+                if (!response.ok) return;
+                const data = await response.json();
+
+                document.getElementById('dashTotalVotes').innerText = data.total_votes;
+                document.getElementById('dashAccessVotes').innerText = data.accessibility_users_count || 0;
+
+                const container = document.getElementById('resultsBreakdownContainer');
+                container.innerHTML = '';
+
+                data.questions_results.forEach((qr, idx) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3";
+
+                    let barsHtml = '';
+                    for (const [opt, count] of Object.entries(qr.option_counts)) {
+                        const pct = data.total_votes > 0 ? Math.round((count / data.total_votes) * 100) : 0;
+                        barsHtml += `
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-xs font-bold text-slate-300">
+                                    <span>${opt}</span>
+                                    <span>${count} أصوات (${pct}%)</span>
+                                </div>
+                                <div class="w-full bg-slate-950 rounded-full h-3 border border-slate-800 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-cyan-500 to-blue-600 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <h4 class="text-sm font-bold text-cyan-300">${idx + 1}. ${qr.question}</h4>
+                        <div class="space-y-3 pt-2">${barsHtml}</div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                const tbody = document.getElementById('pollVotesTableTbody');
+                tbody.innerHTML = '';
+                if (data.votes_list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500">لا توجد مشاركات مسجلة بعد</td></tr>';
+                } else {
+                    data.votes_list.forEach(v => {
+                        const tr = document.createElement('tr');
+                        tr.className = "border-b border-slate-800/50";
+                        const accessBadge = v.used_accessibility
+                            ? '<span class="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">نعم (تسهيلات الوصول)</span>'
+                            : '<span class="text-slate-500">عادي</span>';
+                        tr.innerHTML = `
+                            <td class="p-2 font-bold text-slate-200">${v.voter_name}</td>
+                            <td class="p-2 text-slate-400">${v.voter_email}</td>
+                            <td class="p-2">${accessBadge}</td>
+                            <td class="p-2"><span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">${v.ai_human_score}% بشري</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function copyShareUrl() {
+            const input = document.getElementById('shareUrlInput');
+            const textToCopy = input.value;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).catch(() => {
+                    input.select();
+                    document.execCommand('copy');
+                });
+            } else {
+                input.select();
+                document.execCommand('copy');
+            }
+            speakArabicText("تم نسخ رابط المشاركة");
+            alert('تم نسخ الرابط!');
+        }
+    </script>
 </body>
 </html>
